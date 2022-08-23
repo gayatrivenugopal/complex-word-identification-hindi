@@ -103,7 +103,12 @@ def get_root(word):
 
 def get_synsets(word):
     word = word.strip()
-    return iwn.synsets(word)
+    try:
+      temp_synsets = iwn.synsets(word)
+      return temp_synsets
+    except:
+      return ""
+    
 
 def get_number_of_synsets(word):
     #print(word)
@@ -164,7 +169,7 @@ def get_synset_examples(synset):
     return synset.examples()
 
 def get_ontology_nodes(synset):
-    print(synset.ontology_nodes())
+    #print(synset.ontology_nodes())
     return synset.ontology_nodes()
 
 def is_person(synset):
@@ -382,11 +387,11 @@ def normalise_wordgroup(wordgroup):
         for value in value_list:
           normalised_feature_dict[key].append(value[0])
       #print("value: ", value)
-    print("NORMALISED: ", normalised_feature_dict)
+    #print("NORMALISED: ", normalised_feature_dict)
     #df = pd.DataFrame.from_dict(normalised_feature_dict)
     df = pd.DataFrame.from_dict(normalised_feature_dict)
     #df = df.reset_index()
-    print(df)
+    #print(df)
     return df
 
 #normalise_wordgroup(create_wordgroup('बोलता'))
@@ -408,19 +413,10 @@ def vectorise(key):
 
 """##Predict"""
 
-
-
-from tkinter import *
-from tkinter import ttk
 import string
-
-root = Tk()
-root.title("Enter a sentence in Hindi")
 
 stoplemmas = list()
 
-#Set the window size/geometry
-root.geometry("750x250")
 
 import pickle
 import pandas as pd
@@ -459,23 +455,22 @@ def create_record(word_lemma):
 
   #append lexical feature values to the record with embeddings
   for column in columns:
-    X_vector[column] = normalised_wordgroup.loc[normalised_wordgroup['word'] == word][column].values[0]
+    X_vector[column] = normalised_wordgroup.loc[normalised_wordgroup['word'] == word_lemma][column].values[0]
   return X_vector
 
 def predict(path, word_df):
   #load the model
   model = pickle.load(open(path + 'model', 'rb'))
   #print(word_df.columns)
-  return model.predict(word_df)
+  return model.predict(word_df)[0]
   #model.transform(word_df)
 
 
-def process_input():
+def process_input(sentence):
   global entry
   global stoplemmas
   predictions = dict()
 
-  sentence = entry.get()
   sentence = preprocess(sentence)
    
   for word in sentence.split(" "):
@@ -487,23 +482,12 @@ def process_input():
           word_lemma = get_lemma(word)
           #process the lemma if it is not in stop lemmas
           if word_lemma not in stoplemmas:
-            record = create_record(word_lemma)
-            predictions[word] = predict(path, record)
-    print(predictions)
-    #displaying the input to the user
-    label.configure(text=predictions)
+            #check if word exists in the wordnet
+            if get_synsets(word_lemma) == "":
+              predictions[word] = 0
+            else:
+              record = create_record(word_lemma)
+              predictions[word] = predict(path, record)
+  print(predictions)
 
-  
-#Initialize a Label to display the User Input, selecting the font and font size
-label=Label(root, text="", font=("Calibri 22"))
-label.pack()
-
-#Create an Entry widget to accept User Input
-entry= Entry(root, width= 40)
-entry.focus_set()
-entry.pack()
-
-#creating Enter Button
-ttk.Button(root, text= "Enter",width= 20, command = process_input).pack(pady=20)
-
-root.mainloop()
+process_input(input("Enter a sentence"))
